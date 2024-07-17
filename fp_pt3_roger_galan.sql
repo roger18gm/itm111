@@ -603,16 +603,174 @@ VALUES
 ;
 
 
+USE `university`;
+
+-- ----------------------------------------------------------------------
+-- Query 1: Students, and their birthdays, of students born in September. 
+--          Format the date to look like it is shown in the result set. 
+-- ----------------------------------------------------------------------
+
+SELECT fname, lname, DATE_FORMAT(birth_date, '%M %e, %Y')
+FROM person
+WHERE SUBSTRING(birth_date, 6,2) = '09';
+
+-- ----------------------------------------------------------------------------
+-- Query 2: Student's age in years and days as of Jan. 5, 2017.  
+--          Sorted from oldest to youngest. No duplicates  
+--          (You can assume a 365 day year and ignore leap day.) 
+--          Hint: Use the mod function to calculate the days left over 
+--                after dividing by full years. 
+--          The 5th column is just the 3rd and 4th column combined with labels.
+-- ----------------------------------------------------------------------------
+
+SELECT p.lname, p.fname, p.birth_date
+, FLOOR(DATEDIFF('2017-01-05', p.birth_date) / 365) AS 'Years'
+, MOD(DATEDIFF('2017-01-05', p.birth_date), 365) AS 'Days'
+, CONCAT(FLOOR(DATEDIFF('2017-01-05', p.birth_date) / 365),' - Yrs, '
+	, MOD(DATEDIFF('2017-01-05', p.birth_date), 365),' - Days') AS 'Years and Days'
+
+FROM person p
+WHERE p.birth_date IS NOT NULL
+ORDER BY FLOOR(DATEDIFF('2017-01-05', p.birth_date) / 365) DESC, MOD(DATEDIFF('2017-01-05', p.birth_date), 365) DESC;
+
+-- ----------------------------------------------------------------------
+-- Query 3: Who is enrolled in Organ Lessons I.
+--          Sort by person_type.
+-- ----------------------------------------------------------------------
+
+SELECT DISTINCT p.fname, p.lname, r.person_type
+FROM person p
+JOIN enrollment e
+ON e.person_id = p.person_id
+JOIN role r
+ON r.role_id = e.role_id
+JOIN section s
+ON e.section_id = s.section_id
+JOIN course c
+ON c.course_id = s.course_id
+WHERE c.course_name = 'Organ Lessons 1'
+ORDER BY r.person_type;
+
+-- ----------------------------------------------------------------------
+-- Query 4: Find the TAs. What are their names? 
+--          Confirm that they are in fact TAs, 
+--          and find what course they TA for.
+-- ----------------------------------------------------------------------
+
+SELECT p.fname, p.lname, r.person_type, c.course_name
+FROM person p
+JOIN enrollment e
+ON e.person_id = p.person_id
+JOIN role r
+ON e.role_id = r.role_id
+JOIN section s 
+ON s.section_id = e.section_id
+JOIN course c 
+ON c.course_id = s.course_id
+WHERE r.person_type ='TA';
+-- ----------------------------------------------------------------------
+-- Query 5: Students that take Data Intuition and Insight in Fall 2024
+--          Sort by student last name.
+-- ----------------------------------------------------------------------
+
+SELECT fname, lname
+FROM person p 
+JOIN enrollment e
+ON e.person_id = p.person_id
+JOIN section s 
+ON e.section_id = s.section_id
+JOIN role r 
+ON e.role_id = r.role_id
+JOIN course c 
+ON s.course_id = c.course_id
+WHERE c.course_name = 'Data Intuition and Insight' AND r.person_type = 'Student'
+ORDER BY p.lname ASC;
+-- ----------------------------------------------------------------------
+-- Query 6: A report showing all of Bryce Carlson's courss for Winter
+--          Sort by the name of the course.
+-- ----------------------------------------------------------------------
+
+SELECT c.course_code, c.course_num, c.course_name
+FROM course c
+JOIN section s 
+ON s.course_id = c.course_id
+JOIN enrollment e 
+ON e.section_id = s.section_id
+JOIN role r 
+ON e.role_id = r.role_id
+JOIN person p 
+ON p.person_id = e.person_id
+WHERE p.lname = 'Carlson'
+ORDER BY c.course_name ASC;
+
+-- ----------------------------------------------------------------------
+-- Query 7: The number of students enrolled for Fall 2024
+-- ----------------------------------------------------------------------
+
+SELECT t.term_name, t.term_year, COUNT(DISTINCT(e.person_id)) as 'Enrollment'
+FROM term t
+JOIN section s 
+ON s.term_id = t.term_id
+JOIN enrollment e 
+ON e.section_id = s.section_id
+JOIN role r 
+ON e.role_id = r.role_id
+JOIN person p 
+ON e.person_id = p.person_id
+WHERE t.term_name = 'Fall' AND t.term_year = '2024' AND r.person_type = 'Student'
+GROUP BY t.term_name;
+
+-- ----------------------------------------------------------------------
+-- Query 8: The number of courses in each department. 
+--          Sort by department name.
+-- ----------------------------------------------------------------------
+
+SELECT dep.department_name, COUNT(c.course_id) AS 'Courses'
+FROM department dep 
+JOIN degree deg 
+ON deg.department_id = dep.department_id
+JOIN course c
+ON c.degree_id = deg.degree_id
+GROUP BY dep.department_name;
 
 
+-- ---------------------------------------------------------------------------
+-- Query 9: The total number of students each professor can teach in Winter.
+--          Sort by that total number of students (teaching capacity).
+-- ---------------------------------------------------------------------------
 
+SELECT p.fname, p.lname, SUM(s.section_capacity) AS 'TeachingCapacity'
+FROM person p 
+JOIN enrollment e
+ON e.person_id = p.person_id
+JOIN section s 
+ON e.section_id = s.section_id
+JOIN role r 
+ON e.role_id = r.role_id
+JOIN term t
+ON s.term_id = t.term_id
+WHERE t.term_name = 'Winter' AND t.term_year = 2025 AND r.person_type = 'Teacher'
+GROUP BY p.fname, p.lname
+ORDER BY SUM(s.section_capacity) ASC;
 
+-- ---------------------------------------------------------------------------
+-- Query 10: Each student's total credit load for Fall, 
+--           but only students with a credit load greater than three.
+--           Sort by credit load in descending order. 
+-- ---------------------------------------------------------------------------
 
-
-
-
-
-
-
-
-
+SELECT p.lname, p.fname, SUM(c.course_credit) AS 'Credits'
+FROM person p
+JOIN enrollment e 
+ON e.person_id = p.person_id
+JOIN section s 
+ON e.section_id = s.section_id
+JOIN role r 
+ON e.role_id = r.role_id
+JOIN course c
+ON s.course_id = c.course_id
+JOIN term t
+ON t.term_id = s.term_id
+WHERE r.person_type = 'Student' AND t.term_name = 'Fall' AND t.term_year = 2024
+GROUP BY p.fname, p.lname
+HAVING SUM(c.course_credit) > 3;
